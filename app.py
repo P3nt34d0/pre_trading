@@ -16,6 +16,9 @@ st.title("📈 Pré-Trading")
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
 
+def pretty(s: str) -> str:
+    return s.title() if s else s
+
 def fmt_brl_md(x: float) -> str:
     """Formata moeda pt-BR para Markdown (escapa $)."""
     try:
@@ -143,6 +146,62 @@ CLASS_PRESETS = {
 }
 # opções legíveis para o select
 TIPO_ATIVO_OPCOES = sorted(list({k for k in CLASS_PRESETS.keys()}))
+
+# --- normalização e alias para "tipo de ativo" vindos da base ---
+ALIAS_TIPO = {
+    "fundos": "fundos",
+    "fundos de investimento": "fundos",
+    "fundos_de_investimento": "fundos",
+    "fundos de investimentos": "fundos",
+    "fundos de fundos": "fundos",
+    "fundos multimercado": "fundos",
+    "fundos imobiliarios": "fundos",
+    "fundos imobiliários": "fundos",
+    "fundos fidc": "fundos",
+    "fundos (fidc)": "fundos",
+    "fundos (rv)": "fundos",
+    "fundos (rf)": "fundos",
+    "outros_fundos_de_investimento": "fundos",
+    "outros fundos de investimento": "fundos",
+    "cotas de fundos": "cotas de fundos",  # já é chave válida
+    "acoes": "acoes",
+    "ação": "acoes",
+    "ações": "acoes",
+    "caixa": "caixa",
+    "contas correntes": "contas correntes",
+    "contas_correntes": "contas correntes",
+    "contas pagar receber": "contas_pagar_receber",
+    "contas_pagar_receber": "contas_pagar_receber",
+    "creditorios": "creditórios",
+    "creditórios": "creditórios",
+    "debenture": "debênture",
+    "debênture": "debênture",
+    "debentures": "debentures",
+    "despesas": "despesas",
+    "futuro": "futuro",
+    "imovel": "imóvel",
+    "imóvel": "imóvel",
+    "opcao acao": "opção ação",
+    "opção ação": "opção ação",
+    "outros ativos": "outros ativos",
+    "pdd": "pdd",
+    "provisao": "provisão",
+    "provisão": "provisão",
+    "titulos publicos": "titulos_publicos",
+    "títulos públicos": "títulos públicos",
+    "títulos publicos": "títulos públicos",
+    "titulos_publicos": "titulos_publicos",
+}
+
+def normalize_tipo_ativo(valor: str) -> str:
+    v = (valor or "").strip().lower().replace("-", " ").replace(".", " ").replace("/", " ")
+    v = " ".join(v.split())  # colapsa espaços
+    return ALIAS_TIPO.get(v, v)  # se não achar, devolve normalizado (pode não estar nos presets)
+
+def set_if_changed(key: str, new_value: str):
+    """Atualiza um widget state somente se for diferente (evita piscar)."""
+    if st.session_state.get(key) != new_value:
+        st.session_state[key] = new_value
 
 if "uploader_key" not in st.session_state:
     st.session_state.uploader_key = 0
@@ -346,7 +405,7 @@ if st.session_state.permitir_ativo_novo and fundo:
                         (st.session_state.df["ativo"] == a)
                     ]
                     if not base.empty:
-                        herd["tipo de ativo"] = str(base.get("tipo de ativo", pd.Series([""])).iloc[0])
+                        herd["tipo de ativo"] = normalize_tipo_ativo(str(base.get("tipo de ativo", pd.Series([""])).iloc[0]))
                         herd["categoria"] = str(base.get("categoria", pd.Series([""])).iloc[0])
                         herd["categoria 2"] = str(base.get("categoria 2", pd.Series([""])).iloc[0])
                         herd["categoria comitê"] = str(base.get("categoria comitê", pd.Series([""])).iloc[0])
@@ -364,17 +423,29 @@ if st.session_state.permitir_ativo_novo and fundo:
             st.divider()
             st.markdown(f"**Ativo:** `{a}`" + ("" if a in novos_ativos else " — *(já existente na carteira)*"))
             linha = cad.loc[cad["ativo"] == a].iloc[-1].to_dict()
-            tipo_atual = linha.get("tipo de ativo", "")
+            tipo_atual = normalize_tipo_ativo(linha.get("tipo de ativo", ""))
+
+            # opções exibidas (mantém as chaves dos presets)
+            preset_keys_sorted = sorted(list(CLASS_PRESETS.keys()))
+            options_tipo = [""] + preset_keys_sorted
+
+            # calcula o índice com segurança
+            try:
+                idx_inicial = options_tipo.index(tipo_atual) if tipo_atual in options_tipo else 0
+            except ValueError:
+                idx_inicial = 0
 
             col1, col2, col3, col4 = st.columns(4)
             with col1:
                 tipo_escolhido = st.selectbox(
                     "Tipo de Ativo",
-                    options=[""] + sorted(list(CLASS_PRESETS.keys())),
-                    index=([""] + sorted(list(CLASS_PRESETS.keys()))).index(tipo_atual)
-                          if tipo_atual in CLASS_PRESETS else 0,
-                    key=f"tipo_{a}"
+                    options=options_tipo,
+                    index=idx_inicial,
+                    key=f"tipo_{a}",
+                    format_func=pretty,
+                    help="Selecione o tipo ou utilize um dos modelos para preencher categorias."
                 )
+
             with col2:
                 # presets para preencher rápido
                 presets = CLASS_PRESETS.get(tipo_escolhido, [])
@@ -386,22 +457,35 @@ if st.session_state.permitir_ativo_novo and fundo:
                     index=0,
                     key=f"preset_{a}",
                 )
-            # calcula valores iniciais (herdados + preset)
-            cat = linha.get("categoria", "")
-            cat2 = linha.get("categoria 2", "")
-            catc = linha.get("categoria comitê", "")
-            if preset_idx > 0:
-                pr = presets[preset_idx - 1]
-                cat, cat2, catc = pr["categoria"], pr["categoria 2"], pr["categoria comitê"]
 
-            with col3:
-                cat = st.text_input("Categoria", value=str(cat), key=f"cat_{a}")
-            with col4:
-                cat2 = st.text_input("Categoria 2", value=str(cat2), key=f"cat2_{a}")
-            catc = st.text_input("Categoria Comitê", value=str(catc), key=f"catc_{a}")
+                # valores atuais (o que estiver no state tem prioridade)
+                cat_state_key, cat2_state_key, catc_state_key = f"cat_{a}", f"cat2_{a}", f"catc_{a}"
+                cat_current = st.session_state.get(cat_state_key, str(linha.get("categoria", "")))
+                cat2_current = st.session_state.get(cat2_state_key, str(linha.get("categoria 2", "")))
+                catc_current = st.session_state.get(catc_state_key, str(linha.get("categoria comitê", "")))
+
+                # se um preset foi escolhido, escreve diretamente no state ANTES de renderizar os inputs
+                if preset_idx > 0:
+                    pr = presets[preset_idx - 1]
+                    set_if_changed(cat_state_key, pr["categoria"])
+                    set_if_changed(cat2_state_key, pr["categoria 2"])
+                    set_if_changed(catc_state_key, pr["categoria comitê"])
+                    # atualiza variáveis locais para refletir no value
+                    cat_current = pr["categoria"]
+                    cat2_current = pr["categoria 2"]
+                    catc_current = pr["categoria comitê"]
+
+                with col3:
+                    cat_val = st.text_input("Categoria", value=cat_current, key=cat_state_key)
+                with col4:
+                    cat2_val = st.text_input("Categoria 2", value=cat2_current, key=cat2_state_key)
+                catc_val = st.text_input("Categoria Comitê", value=catc_current, key=catc_state_key)
 
             cad.loc[cad["ativo"] == a, ["tipo de ativo", "categoria", "categoria 2", "categoria comitê"]] = [
-                tipo_escolhido, cat, cat2, catc
+                tipo_escolhido,
+                st.session_state.get(cat_state_key, ""),
+                st.session_state.get(cat2_state_key, ""),
+                st.session_state.get(catc_state_key, ""),
             ]
 
         # mostra resumo do cadastro dos digitados
@@ -544,7 +628,7 @@ if st.session_state.get("resultados"):
     st.subheader("Resultado das Regras (lote)")
     for r in st.session_state.resultados:
         if r.regra == "enquadramento_cvm":
-            regra_texto = "Enquadramento CVM"
+            regra_texto = "Política de investimento (Regulamento)"
         elif r.regra == "enquadramento_tributario":
             regra_texto = "Enquadramento Tributário"
         elif r.regra == "prazo_medio":
@@ -561,6 +645,6 @@ if st.session_state.get("resultados"):
     st.download_button(
         label="⬇️ Baixar PDF",
         data=pdf_bytes,
-        file_name=f"pre_trading - {fundo} - {str(datetime.now())[:19]}.pdf",
+        file_name=f"pre_trading - {fundo} - {str(datetime.now())[:10]}.pdf",
         mime="application/pdf",
     )

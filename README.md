@@ -10,5 +10,5 @@ streamlit run app.py
 
 cd pre_trading
 git add .
-git commit -m "descrição das mudanças"
+git commit -m ""
 git push origin main

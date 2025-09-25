@@ -59,7 +59,7 @@ class SimplePDF(FPDF):
     def footer(self):
         self.set_y(-15)
         self.set_font("helvetica", "I", 8)
-        self.cell(0, 10, f"Pagina {self.page_no()}", align="C")
+        self.cell(0, 10, f"Página {self.page_no()}", align="C")
         # adiciona data/hora de geração (setada em build_pdf)
         dt_txt = getattr(self, "generated_at", "")
         self.cell(0, 10, f"Gerado em {dt_txt}", align="R")
@@ -80,7 +80,7 @@ def _sec_ordens(pdf: SimplePDF, ordens: List[Ordem]):
     pdf.set_font("helvetica", size=10)
 
     # Cabeçalho
-    col_w = [100, 25, 35, 30, 35]  # Ativo, Tipo, Quantidade, Preco, Total
+    col_w = [100, 25, 40, 35, 40]  # Ativo, Tipo, Quantidade, Preco, Total
     headers = ["Ativo", "Tipo", "Quantidade", "Preço", "Total"]
     for w, h in zip(col_w, headers):
         pdf.cell(w, 8, h, border=1, align="C")
@@ -109,7 +109,7 @@ def _sec_regras(pdf: SimplePDF, resultados: List[RegraResultado]):
 
     pdf.set_font("helvetica", "B", 10)
     # Tabela: Regra | Status | Atual | Proposto | Limite
-    col_w = [55, 35, 55, 55, 25]
+    col_w = [70, 35, 55, 55, 25]
     headers = ["Regra", "Status", "Atual", "Proposto", "Limite"]
     for w, h in zip(col_w, headers):
         pdf.cell(w, 8, h, border=1, align="C")
@@ -123,7 +123,7 @@ def _sec_regras(pdf: SimplePDF, resultados: List[RegraResultado]):
     for r in resultados:
         # Colunas fixas
         if r.regra == "enquadramento_cvm":
-            regra_texto = "Enquadramento CVM"
+            regra_texto = "Política de investimento (Regulamento)"
         elif r.regra == "enquadramento_tributario":
             regra_texto = "Enquadramento Tributário"
         elif r.regra == "prazo_medio":
@@ -194,7 +194,7 @@ def build_pdf(
     pdf.set_auto_page_break(auto=True, margin=12)
     
     # define timestamp de geração (dd/mm/aaaa HH:MM:SS) para o rodapé
-    pdf.generated_at = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    pdf.generated_at = datetime.now().strftime("%d/%m/%Y")
 
     pdf.add_page()
     _sec_cabecalho(pdf, fundo, pl_total)
