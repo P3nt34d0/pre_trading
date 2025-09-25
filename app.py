@@ -187,27 +187,35 @@ with tab_fundo:
 # ======================== ORDENS (lote) ========================
 st.markdown("### 🧾 Ordens (lote)")
 
-# Estado inicial e helpers
-if "orders_df" not in st.session_state:
-    st.session_state.orders_df = pd.DataFrame(
-        {"ativo": [""], "quantidade": [0.0], "preco": [0.0], "tipo": ["compra"]}
-    )
-if "cad_novos" not in st.session_state:
-    st.session_state.cad_novos = pd.DataFrame(
-        columns=["ativo", "tipo de ativo", "categoria", "categoria 2", "categoria comitê"]
-    )
-if "permitir_ativo_novo" not in st.session_state:
-    st.session_state.permitir_ativo_novo = False
+# --- Schema & estado inicial (fixo para não resetar) ---
+ORDERS_SCHEMA = {"ativo": str, "quantidade": float, "preco": float, "tipo": str}
 
+def _ensure_orders_state():
+    if "orders_df" not in st.session_state:
+        st.session_state.orders_df = pd.DataFrame(
+            [{"ativo": "", "quantidade": 0.0, "preco": 0.0, "tipo": "compra"}]
+        ).astype(ORDERS_SCHEMA)
+    if "cad_novos" not in st.session_state:
+        st.session_state.cad_novos = pd.DataFrame(
+            columns=["ativo", "tipo de ativo", "categoria", "categoria 2", "categoria comitê"]
+        )
+    if "permitir_ativo_novo" not in st.session_state:
+        st.session_state.permitir_ativo_novo = False
+
+_ensure_orders_state()
+
+# --- Ações auxiliares (não recriam o DF inteiro) ---
 def _add_line():
-    st.session_state.orders_df.loc[len(st.session_state.orders_df)] = ["", 0.0, 0.0, "compra"]
+    df = st.session_state.orders_df.copy()
+    df.loc[len(df)] = {"ativo": "", "quantidade": 0.0, "preco": 0.0, "tipo": "compra"}
+    st.session_state.orders_df = df
 
 def _clear_lines():
     st.session_state.orders_df = pd.DataFrame(
-        {"ativo": [""], "quantidade": [0.0], "preco": [0.0], "tipo": ["compra"]}
-    )
+        [{"ativo": "", "quantidade": 0.0, "preco": 0.0, "tipo": "compra"}]
+    ).astype(ORDERS_SCHEMA)
 
-# Opções de ativos do fundo atual
+# --- Opções de ativos do fundo atual ---
 ativos_opts = []
 if st.session_state.df is not None and fundo:
     mask_fundo = st.session_state.df["nome do fundo"] == fundo
@@ -216,7 +224,7 @@ if st.session_state.df is not None and fundo:
             st.session_state.df.loc[mask_fundo, "ativo"].dropna().astype(str).unique().tolist()
         )
 
-# Botões e toggle
+# --- Botões e toggle (fora do editor) ---
 c1, c2, c3 = st.columns([1, 1, 2])
 with c1:
     st.button("➕ Adicionar linha", on_click=_add_line)
@@ -229,106 +237,124 @@ with c3:
         help="Habilite para cadastrar ativos que não estão na carteira e definir suas classificações."
     )
 
-# Editor (tempo real)
+# --- Callback: sincroniza imediatamente o editor -> session_state ---
+def _sync_orders_from_editor():
+    edited = st.session_state["orders_editor"]
+    edited = pd.DataFrame(edited).astype(ORDERS_SCHEMA)
+    st.session_state.orders_df = edited
+
+# --- Config da coluna "Ativo" ---
 col_ativo = (
     st.column_config.TextColumn("Ativo")
     if st.session_state.permitir_ativo_novo
     else st.column_config.SelectboxColumn("Ativo", options=ativos_opts, help="Escolha um ativo do fundo.")
 )
-edited_df = st.data_editor(
+
+# --- Editor persistente (sem precisar digitar 2x) ---
+st.data_editor(
     st.session_state.orders_df,
+    key="orders_editor",
     num_rows="dynamic",
     width="stretch",
-    key="orders_editor",
     column_config={
         "ativo": col_ativo,
         "quantidade": st.column_config.NumberColumn("Quantidade", step=1.0, min_value=0.0),
         "preco": st.column_config.NumberColumn("Preço Unitário", step=0.01, min_value=0.0, format="%.2f"),
         "tipo": st.column_config.SelectboxColumn("Tipo", options=["compra", "venda"]),
     },
+    on_change=_sync_orders_from_editor,   # 🔑 grava na 1ª edição
 )
-st.session_state.orders_df = edited_df.copy()
 
-# Classificação de ativos novos
+# ------------------ Classificação de ativos novos ------------------
 cad = st.session_state.cad_novos.copy()
-novos_ativos = []
+
 if st.session_state.permitir_ativo_novo and fundo:
-    todos_digitados = [a.strip() for a in st.session_state.orders_df["ativo"].astype(str).tolist() if a and a.strip()]
-    novos_ativos = [a for a in todos_digitados if a not in ativos_opts]
-
-    if not todos_digitados:
-        st.info("Digite ao menos um **Ativo** na tabela acima para aparecer o painel de classificação.")
-    else:
-        st.markdown("#### 🏷️ Classificação de ativos")
-        if not novos_ativos:
-            st.caption("Todos os ativos digitados já existem no fundo. Você pode ajustar as classificações, se desejar.")
-        else:
-            st.caption("Ativos novos detectados: " + ", ".join(f"`{a}`" for a in novos_ativos))
-
+    # Pega tudo o que foi digitado (já sincronizado via on_change)
+    todos_digitados = [
+        a.strip() for a in st.session_state.orders_df["ativo"].astype(str).tolist()
+        if a and a.strip()
+    ]
+    if todos_digitados:
+        # Garante que cada ativo digitado tenha uma linha em cad (já neste rerun)
         for a in todos_digitados:
             if cad[cad["ativo"] == a].empty:
                 herd = {"tipo de ativo": "", "categoria": "", "categoria 2": "", "categoria comitê": ""}
                 if a in ativos_opts:
-                    base = st.session_state.df.loc[(st.session_state.df["nome do fundo"] == fundo) & (st.session_state.df["ativo"] == a)]
+                    base = st.session_state.df.loc[
+                        (st.session_state.df["nome do fundo"] == fundo) &
+                        (st.session_state.df["ativo"] == a)
+                    ]
                     if not base.empty:
-                        herd["tipo de ativo"] = str(base["tipo de ativo"].iloc[0]) if "tipo de ativo" in base.columns else ""
-                        herd["categoria"] = str(base["categoria"].iloc[0]) if "categoria" in base.columns else ""
-                        herd["categoria 2"] = str(base["categoria 2"].iloc[0]) if "categoria 2" in base.columns else ""
-                        herd["categoria comitê"] = str(base["categoria comitê"].iloc[0]) if "categoria comitê" in base.columns else ""
+                        herd["tipo de ativo"] = str(base.get("tipo de ativo", pd.Series([""])).iloc[0])
+                        herd["categoria"] = str(base.get("categoria", pd.Series([""])).iloc[0])
+                        herd["categoria 2"] = str(base.get("categoria 2", pd.Series([""])).iloc[0])
+                        herd["categoria comitê"] = str(base.get("categoria comitê", pd.Series([""])).iloc[0])
                 cad.loc[len(cad)] = {"ativo": a, **herd}
 
+        st.markdown("#### 🏷️ Classificação de ativos")
+        novos_ativos = [a for a in todos_digitados if a not in ativos_opts]
+        if novos_ativos:
+            st.caption("Ativos novos detectados: " + ", ".join(f"`{a}`" for a in novos_ativos))
+        else:
+            st.caption("Todos os ativos digitados já existem na carteira (você pode ajustar as classificações).")
+
+        # Editor simples por ativo (keys estáveis por nome do ativo)
         for a in todos_digitados:
             st.divider()
             st.markdown(f"**Ativo:** `{a}`" + ("" if a in novos_ativos else " — *(já existente na carteira)*"))
-            tipo_atual = _norm(cad.loc[cad["ativo"] == a, "tipo de ativo"].iloc[0]) if not cad[cad["ativo"] == a].empty else ""
+            linha = cad.loc[cad["ativo"] == a].iloc[-1].to_dict()
+            tipo_atual = linha.get("tipo de ativo", "")
 
-            col1, col2 = st.columns([1, 2])
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 tipo_escolhido = st.selectbox(
                     "Tipo de Ativo",
-                    options=[""] + TIPO_ATIVO_OPCOES,
-                    index=([""] + TIPO_ATIVO_OPCOES).index(tipo_atual) if tipo_atual in TIPO_ATIVO_OPCOES else 0,
+                    options=[""] + sorted(list(CLASS_PRESETS.keys())),
+                    index=([""] + sorted(list(CLASS_PRESETS.keys()))).index(tipo_atual)
+                          if tipo_atual in CLASS_PRESETS else 0,
                     key=f"tipo_{a}"
                 )
-            presets = CLASS_PRESETS.get(tipo_escolhido, [])
-
             with col2:
+                # presets para preencher rápido
+                presets = CLASS_PRESETS.get(tipo_escolhido, [])
                 preset_labels = ["(não aplicar preset)"] + [p["label"] for p in presets]
                 preset_idx = st.selectbox(
-                    "Modelo de Classificação",
+                    "Modelo",
                     options=list(range(len(preset_labels))),
                     format_func=lambda i: preset_labels[i],
                     index=0,
                     key=f"preset_{a}",
                 )
-
-            linha = cad.loc[cad["ativo"] == a].iloc[-1].to_dict()
+            # calcula valores iniciais (herdados + preset)
             cat = linha.get("categoria", "")
             cat2 = linha.get("categoria 2", "")
             catc = linha.get("categoria comitê", "")
-
             if preset_idx > 0:
-                preset = presets[preset_idx - 1]
-                cat = preset["categoria"]; cat2 = preset["categoria 2"]; catc = preset["categoria comitê"]
+                pr = presets[preset_idx - 1]
+                cat, cat2, catc = pr["categoria"], pr["categoria 2"], pr["categoria comitê"]
 
-            c3, c4, c5 = st.columns(3)
-            with c3:
+            with col3:
                 cat = st.text_input("Categoria", value=str(cat), key=f"cat_{a}")
-            with c4:
+            with col4:
                 cat2 = st.text_input("Categoria 2", value=str(cat2), key=f"cat2_{a}")
-            with c5:
-                catc = st.text_input("Categoria Comitê", value=str(catc), key=f"catc_{a}")
+            catc = st.text_input("Categoria Comitê", value=str(catc), key=f"catc_{a}")
 
-            cad.loc[cad["ativo"] == a, ["tipo de ativo","categoria","categoria 2","categoria comitê"]] = [
+            cad.loc[cad["ativo"] == a, ["tipo de ativo", "categoria", "categoria 2", "categoria comitê"]] = [
                 tipo_escolhido, cat, cat2, catc
             ]
 
+        # mostra resumo do cadastro dos digitados
         st.dataframe(
-            cad.loc[cad["ativo"].isin(todos_digitados)][["ativo","tipo de ativo","categoria","categoria 2","categoria comitê"]],
+            cad.loc[cad["ativo"].isin(todos_digitados)][
+                ["ativo","tipo de ativo","categoria","categoria 2","categoria comitê"]
+            ],
             width="stretch",
         )
 
-# botão único de validação
+# salva o cadastro (importante para persistir entre reruns)
+st.session_state.cad_novos = cad.copy()
+
+# ------------------ Botão de validação do lote -------------------
 validar_lote = st.button("✅ Validar Lote")
 
 # ======================== PROCESSAMENTO DO CLIQUE ========================
