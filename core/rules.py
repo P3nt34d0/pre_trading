@@ -277,7 +277,7 @@ def enquadramento_cvm(df: pd.DataFrame, ordem: Ordem, limites_regra) -> RegraRes
     tipo = _get_fundo_tipo(df, ordem.fundo)
     entry, scope = _cfg_for_scope(limites_regra, ordem.fundo, tipo)
     if entry in (None, "~", "NA", "N/A"):
-        return RegraResultado("enquadramento_cvm", True, 0.0, 0.0, 0.0, f"Política de investimento (Regulamento): Fundo {ordem.fundo} isento de observância.")
+        return RegraResultado("enquadramento_cvm", True, 0.0, 0.0, 0.0, f"Politica de investimento (Regulamento): Fundo {ordem.fundo} isento de observância.")
 
     if isinstance(entry, (int, float)):
         entry = {"min": float(entry), "alvo": {"any": []}}
@@ -290,7 +290,7 @@ def enquadramento_cvm(df: pd.DataFrame, ordem: Ordem, limites_regra) -> RegraRes
     df_f = _filtro_futuros(df_f)
 
     if df_f.empty or not _col(df, "valor"):
-        return RegraResultado("enquadramento_cvm", False, 0.0, 0.0, limite, "Política de investimento (Regulamento): Sem linhas/coluna 'valor' para o fundo.")
+        return RegraResultado("enquadramento_cvm", False, 0.0, 0.0, limite, "Politica de investimento (Regulamento): Sem linhas/coluna 'valor' para o fundo.")
 
     mask = _mask_por_alvo(df_f, alvo)
     pos_atual = float(df_f.loc[mask, "valor"].sum())
@@ -315,7 +315,7 @@ def enquadramento_cvm(df: pd.DataFrame, ordem: Ordem, limites_regra) -> RegraRes
         valor_atual=perc_atual,
         valor_proposto=perc_proposto,
         limite=limite,
-        mensagem=f"Política de investimento (Regulamento): {perc_proposto:.2%} do PL (mín {limite:.2%})."
+        mensagem=f"Politica de investimento (Regulamento): {perc_proposto:.2%} do PL (mín {limite:.2%})."
     )
 
 def enquadramento_tributario(df: pd.DataFrame, ordem: Ordem, limites_regra) -> RegraResultado:
