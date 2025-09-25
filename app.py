@@ -238,54 +238,68 @@ with c3:
     )
 
 def _to_orders_df(obj) -> pd.DataFrame:
-    # Converte qualquer payload do data_editor → DataFrame com colunas e dtypes corretos
+    """
+    Converte qualquer payload do data_editor para DataFrame com colunas padronizadas.
+    Aceita: DataFrame, lista de dicts, dict de listas (colunas), dict de dicts (linhas).
+    """
+    import pandas as pd
+
+    # Caso já seja DataFrame
     if isinstance(obj, pd.DataFrame):
         df = obj.copy()
+
+    # Lista de registros
     elif isinstance(obj, list):
-        df = pd.DataFrame.from_records(obj)
+        # ex.: [{"ativo": "...", "quantidade": ...}, ...]
+        df = pd.DataFrame.from_records(obj) if obj else pd.DataFrame()
+
+    # Dicionário
     elif isinstance(obj, dict):
-        # tenta como colunas; se falhar, cai para records
-        try:
+        # 1) dict de listas (colunas)
+        if all(isinstance(v, (list, tuple)) for v in obj.values()):
             df = pd.DataFrame(obj)
-        except Exception:
-            df = pd.DataFrame.from_records(list(obj.values()))
+        # 2) dict de dicts (linhas): {0: {...}, 1: {...}}
+        elif all(isinstance(v, dict) for v in obj.values()):
+            df = pd.DataFrame.from_dict(obj, orient="index")
+        else:
+            # 3) um único registro {"ativo": "...", ...}
+            df = pd.DataFrame([obj])
     else:
-        # último recurso
+        # fallback
         try:
             df = pd.DataFrame(obj)
         except Exception:
             df = pd.DataFrame()
 
-    # garante colunas
+    # Garante colunas e ordem
     cols = ["ativo", "quantidade", "preco", "tipo"]
     for c, default in zip(cols, ["", 0.0, 0.0, "compra"]):
         if c not in df.columns:
             df[c] = default
     df = df[cols]
 
-    # dtypes e limpeza
+    # Tipos
     df["ativo"] = df["ativo"].astype(str).fillna("")
     df["quantidade"] = pd.to_numeric(df["quantidade"], errors="coerce").fillna(0.0)
     df["preco"] = pd.to_numeric(df["preco"], errors="coerce").fillna(0.0)
     df["tipo"] = df["tipo"].astype(str).str.lower()
     df.loc[~df["tipo"].isin(["compra", "venda"]), "tipo"] = "compra"
+
     return df.reset_index(drop=True)
 
 def _sync_orders_from_editor():
     payload = st.session_state.get("orders_editor", st.session_state.orders_df)
     st.session_state.orders_df = _to_orders_df(payload)
 
-# --- Config da coluna "Ativo" ---
 col_ativo = (
     st.column_config.TextColumn("Ativo")
     if st.session_state.permitir_ativo_novo
     else st.column_config.SelectboxColumn("Ativo", options=ativos_opts, help="Escolha um ativo do fundo.")
 )
 
-# --- Editor persistente (sem precisar digitar 2x) ---
-st.data_editor(
+edited_payload = st.data_editor(
     st.session_state.orders_df,
-    key="orders_editor",
+    key="orders_editor",          # pode manter a key
     num_rows="dynamic",
     width="stretch",
     column_config={
@@ -294,8 +308,11 @@ st.data_editor(
         "preco": st.column_config.NumberColumn("Preço Unitário", step=0.01, min_value=0.0, format="%.2f"),
         "tipo": st.column_config.SelectboxColumn("Tipo", options=["compra", "venda"]),
     },
-    on_change=_sync_orders_from_editor,
 )
+
+# Converte o que voltou (DataFrame/dict/list) e persiste imediatamente
+if edited_payload is not None:
+    st.session_state.orders_df = _to_orders_df(edited_payload)
 
 # ------------------ Classificação de ativos novos ------------------
 cad = st.session_state.cad_novos.copy()
