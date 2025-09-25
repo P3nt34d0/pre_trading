@@ -237,11 +237,43 @@ with c3:
         help="Habilite para cadastrar ativos que não estão na carteira e definir suas classificações."
     )
 
-# --- Callback: sincroniza imediatamente o editor -> session_state ---
+def _to_orders_df(obj) -> pd.DataFrame:
+    # Converte qualquer payload do data_editor → DataFrame com colunas e dtypes corretos
+    if isinstance(obj, pd.DataFrame):
+        df = obj.copy()
+    elif isinstance(obj, list):
+        df = pd.DataFrame.from_records(obj)
+    elif isinstance(obj, dict):
+        # tenta como colunas; se falhar, cai para records
+        try:
+            df = pd.DataFrame(obj)
+        except Exception:
+            df = pd.DataFrame.from_records(list(obj.values()))
+    else:
+        # último recurso
+        try:
+            df = pd.DataFrame(obj)
+        except Exception:
+            df = pd.DataFrame()
+
+    # garante colunas
+    cols = ["ativo", "quantidade", "preco", "tipo"]
+    for c, default in zip(cols, ["", 0.0, 0.0, "compra"]):
+        if c not in df.columns:
+            df[c] = default
+    df = df[cols]
+
+    # dtypes e limpeza
+    df["ativo"] = df["ativo"].astype(str).fillna("")
+    df["quantidade"] = pd.to_numeric(df["quantidade"], errors="coerce").fillna(0.0)
+    df["preco"] = pd.to_numeric(df["preco"], errors="coerce").fillna(0.0)
+    df["tipo"] = df["tipo"].astype(str).str.lower()
+    df.loc[~df["tipo"].isin(["compra", "venda"]), "tipo"] = "compra"
+    return df.reset_index(drop=True)
+
 def _sync_orders_from_editor():
-    edited = st.session_state["orders_editor"]
-    edited = pd.DataFrame(edited).astype(ORDERS_SCHEMA)
-    st.session_state.orders_df = edited
+    payload = st.session_state.get("orders_editor", st.session_state.orders_df)
+    st.session_state.orders_df = _to_orders_df(payload)
 
 # --- Config da coluna "Ativo" ---
 col_ativo = (
@@ -262,7 +294,7 @@ st.data_editor(
         "preco": st.column_config.NumberColumn("Preço Unitário", step=0.01, min_value=0.0, format="%.2f"),
         "tipo": st.column_config.SelectboxColumn("Tipo", options=["compra", "venda"]),
     },
-    on_change=_sync_orders_from_editor,   # 🔑 grava na 1ª edição
+    on_change=_sync_orders_from_editor,
 )
 
 # ------------------ Classificação de ativos novos ------------------
