@@ -1,0 +1,266 @@
+limits:
+  enquadramento_cvm:
+    "Bassano di Grappo":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Brutus": ~
+
+    "Clubcard":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Franquias":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Guaimbê FIM":
+      alvo:
+        "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "ETF", "FUNDOS"]
+      min: 0.95
+
+    "Phronesis FIA":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Phronesis FIM": ~
+
+    "Quartzo FIM": ~
+
+    "Távola": ~
+
+    "Trindade":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Trindade FIM":
+      alvo:
+        "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "ETF", "FUNDOS"]
+      min: 0.95
+
+    "Tsadik FIM": ~
+
+    "Scarlet": ~
+    "Monte Alto": ~
+
+    "Uba":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Royalty":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Sevilha": ~
+
+    "Passaúna":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Ambar Branco FIM":
+      alvo:
+        "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "ETF", "FUNDOS"]
+      min: 0.95
+
+    "Pérola Negra FIM":
+      alvo:
+        "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "ETF", "FUNDOS"]
+      min: 0.95
+
+    "Bassano FII": ~
+
+    "PHIP11":
+      alvo:
+        ativo_prefix: ["NTNB"]
+      min: 0.95
+
+    "Onix":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Rubi":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+  enquadramento_tributario:
+    "Bassano di Grappo":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Brutus":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.67
+
+    "Clubcard":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Franquias":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Guaimbê FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.95
+
+    "Phronesis FIA":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Phronesis FIM": ~
+
+    "Quartzo FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0
+
+    "Távola":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.95
+
+    "Trindade":
+      alvo:
+        "categoria 2": ["Creditórios"]
+      min: 0.67
+
+    "Trindade FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.95
+
+    "Tsadik FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0
+
+    "Scarlet": ~
+    "Monte Alto": ~
+
+    "Uba":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Royalty":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Sevilha": ~
+
+    "Passaúna":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Ambar Branco FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.95
+
+    "Pérola Negra FIM":
+      alvo:
+        groups:
+          - { ativo_equals: ["BOVA11"] }
+          - { all:
+                [
+                  { "tipo de ativo": ["Fundos", "Outros_Fundos_De_Investimento", "Cotas de Fundos", "Acoes", "FUNDOS"] },
+                  { categoria: ["Renda Variável", "Participações", "FIDC", "Imobiliário"] },
+                  { "categoria 2": ["Cotas de Fundos"] }
+                ]
+            }
+      min: 0.95
+
+    "Bassano FII": ~
+    "PHIP11": ~
+
+    "Onix":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+    "Rubi":
+      alvo:
+        categoria: ["Renda Variável"]
+      min: 0.67
+
+  prazo_medio:
+    "Phronesis FIA": { exige: false }
+    "Uba": { exige: false }
+    "Royalty": { exige: false }
+    "Passaúna": { exige: false }
+    "Onix": { exige: false }
+    "Rubi": { exige: false }
