@@ -109,7 +109,7 @@ limits:
                   { "categoria 2": ["Cotas de Fundos"] }
                 ]
             }
-      min: 0.67
+      min: 0.95
 
     "Clubcard":
       alvo:
