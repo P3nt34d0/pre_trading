@@ -12,7 +12,7 @@ from core.report import build_pdf
 st.set_page_config(page_title="Pré-Trading", layout="wide")
 st.title("📈 Pré-Trading")
 
-with st.sidebar.expander("📘 Regras e limites (clique para ver)", expanded=False):
+with st.sidebar.expander("📘 Regras e limites", expanded=False):
     st.markdown("**Política de investimento (Regulamento)**")
     st.markdown(
         "- **FIDC**: 67% em Direitos Creditórios — *Risco:* 6% • *Margem ideal:* **73%**\n"
