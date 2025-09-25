@@ -12,6 +12,26 @@ from core.report import build_pdf
 st.set_page_config(page_title="Pré-Trading", layout="wide")
 st.title("📈 Pré-Trading")
 
+with st.sidebar.expander("📘 Regras e limites (clique para ver)", expanded=False):
+    st.markdown("**Política de investimento (Regulamento)**")
+    st.markdown(
+        "- **FIDC**: 67% em Direitos Creditórios — *Risco:* 6% • *Margem ideal:* **73%**\n"
+        "- **FIA**: 67% em ativos de Renda Variável — *Risco:* 6% • *Margem ideal:* **73%**\n"
+        "- **ETF**: 95% em ativos que pertencem ao Índice de referência — *Risco:* 2% • *Margem ideal:* **97%**\n"
+        "- **FIM (com política em cotas)**: 95% em cotas de Fundos — *Risco:* 2% • *Margem ideal:* **97%**"
+    )
+
+    st.markdown("**Enquadramento Tributário — Lei 14.754**")
+    st.markdown(
+        "- **FIDC**: 67% em Direitos Creditórios — *Risco:* 6% • *Margem ideal:* **73%**\n"
+        "- **FIM**: 95% em Entidades de Investimento + FIA's + FII's — *Risco:* 2% • *Margem ideal:* **97%**\n"
+        "- **FIA**: 67% em ativos de Renda Variável — *Risco:* 6% • *Margem ideal:* **73%**"
+    )
+
+    st.markdown("**Prazo Médio — IN RFB nº 1585**")
+    st.markdown("- **Fundos LP**: Base legal **365 dias** • *Risco Phronesis:* **5 dias** • *Margem ideal:* **370 dias**")
+
+
 # ======================== Helpers ========================
 def _norm(s: str) -> str:
     return (s or "").strip().lower()
