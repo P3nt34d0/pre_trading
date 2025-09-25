@@ -7,3 +7,8 @@ cd pre_trading
 .venv\Scripts\activate
 pip install -r requirements.txt
 streamlit run app.py
+
+cd pre_trading
+git add .
+git commit -m "descrição das mudanças"
+git push origin main
