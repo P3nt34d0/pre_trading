@@ -194,7 +194,7 @@ def _ensure_orders_state():
     if "orders_df" not in st.session_state:
         st.session_state.orders_df = pd.DataFrame(
             [{"ativo": "", "quantidade": 0.0, "preco": 0.0, "tipo": "compra"}]
-        ).astype(ORDERS_SCHEMA)
+        )
     if "cad_novos" not in st.session_state:
         st.session_state.cad_novos = pd.DataFrame(
             columns=["ativo", "tipo de ativo", "categoria", "categoria 2", "categoria comitê"]
@@ -213,7 +213,7 @@ def _add_line():
 def _clear_lines():
     st.session_state.orders_df = pd.DataFrame(
         [{"ativo": "", "quantidade": 0.0, "preco": 0.0, "tipo": "compra"}]
-    ).astype(ORDERS_SCHEMA)
+    )
 
 # --- Opções de ativos do fundo atual ---
 ativos_opts = []
@@ -287,10 +287,6 @@ def _to_orders_df(obj) -> pd.DataFrame:
 
     return df.reset_index(drop=True)
 
-def _sync_orders_from_editor():
-    payload = st.session_state.get("orders_editor", st.session_state.orders_df)
-    st.session_state.orders_df = _to_orders_df(payload)
-
 col_ativo = (
     st.column_config.TextColumn("Ativo")
     if st.session_state.permitir_ativo_novo
@@ -299,7 +295,7 @@ col_ativo = (
 
 edited_payload = st.data_editor(
     st.session_state.orders_df,
-    key="orders_editor",          # pode manter a key
+    key="orders_editor",
     num_rows="dynamic",
     width="stretch",
     column_config={
@@ -310,9 +306,25 @@ edited_payload = st.data_editor(
     },
 )
 
-# Converte o que voltou (DataFrame/dict/list) e persiste imediatamente
+def _ensure_cols(df: pd.DataFrame) -> pd.DataFrame:
+    cols = ["ativo", "quantidade", "preco", "tipo"]
+    for c in cols:
+        if c not in df.columns:
+            df[c] = "" if c in ("ativo", "tipo") else 0.0
+    return df[cols]
+
 if edited_payload is not None:
-    st.session_state.orders_df = _to_orders_df(edited_payload)
+    if isinstance(edited_payload, pd.DataFrame):
+        st.session_state.orders_df = _ensure_cols(edited_payload.copy())
+    elif isinstance(edited_payload, list):
+        st.session_state.orders_df = _ensure_cols(pd.DataFrame.from_records(edited_payload))
+    elif isinstance(edited_payload, dict):
+        # tenta colunas; se não for, tenta linhas
+        try:
+            st.session_state.orders_df = _ensure_cols(pd.DataFrame(edited_payload))
+        except Exception:
+            st.session_state.orders_df = _ensure_cols(pd.DataFrame.from_dict(edited_payload, orient="index"))
+
 
 # ------------------ Classificação de ativos novos ------------------
 cad = st.session_state.cad_novos.copy()
@@ -408,34 +420,36 @@ validar_lote = st.button("✅ Validar Lote")
 
 # ======================== PROCESSAMENTO DO CLIQUE ========================
 if validar_lote:
-    st.session_state.cad_novos = cad.copy() if 'cad' in locals() else st.session_state.cad_novos
+    # Trabalhe numa cópia coerida (não mexe no editor)
+    orders_safe = st.session_state.orders_df.copy()
 
-    if st.session_state.df is None or not fundo:
-        st.error("Carregue a carteira e selecione um fundo.")
-    else:
-        ordens = []
-        invalidos = 0
-        novos_para_inserir = []
+    # Coerções e saneamento AQUI (somente nesta etapa)
+    orders_safe["ativo"] = orders_safe["ativo"].astype(str).fillna("").str.strip()
+    orders_safe["tipo"] = orders_safe["tipo"].astype(str).str.lower()
+    orders_safe.loc[~orders_safe["tipo"].isin(["compra","venda"]), "tipo"] = "compra"
+    orders_safe["quantidade"] = pd.to_numeric(orders_safe["quantidade"], errors="coerce").fillna(0.0)
+    orders_safe["preco"] = pd.to_numeric(orders_safe["preco"], errors="coerce").fillna(0.0)
 
-        for _, row in st.session_state.orders_df.iterrows():
-            ativo = str(row.get("ativo", "")).strip()
-            if not ativo:
-                continue
-            try:
-                q = float(row.get("quantidade", 0.0))
-                p = float(row.get("preco", 0.0))
-            except Exception:
-                invalidos += 1
-                continue
-            t = str(row.get("tipo", "compra")).strip().lower()
-            if q <= 0 or p <= 0 or t not in {"compra", "venda"}:
-                invalidos += 1
-                continue
+    # use orders_safe no loop abaixo
+    ordens = []
+    invalidos = 0
+    novos_para_inserir = []
 
-            if st.session_state.permitir_ativo_novo and ativo not in ativos_opts:
-                novos_para_inserir.append(ativo)
+    for _, row in orders_safe.iterrows():
+        ativo = row["ativo"]
+        if not ativo:
+            continue
+        q = float(row["quantidade"])
+        p = float(row["preco"])
+        t = row["tipo"]
+        if q <= 0 or p <= 0 or t not in {"compra", "venda"}:
+            invalidos += 1
+            continue
 
-            ordens.append(Ordem(fundo=fundo, ativo=ativo, quantidade=q, preco=p, tipo=t))
+        if st.session_state.permitir_ativo_novo and ativo not in ativos_opts:
+            novos_para_inserir.append(ativo)
+
+        ordens.append(Ordem(fundo=fundo, ativo=ativo, quantidade=q, preco=p, tipo=t))
 
         if invalidos:
             st.info(f"{invalidos} linha(s) inválidas foram ignoradas.")
